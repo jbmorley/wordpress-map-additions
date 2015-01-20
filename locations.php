@@ -16,6 +16,8 @@ class locations {
 	const SETTINGS_GROUP = "locations";
 	const SETTING_GOOGLE_MAPS_API_KEY = "locations_google_maps_api_key";
 
+	static $maps = array();
+
 	static function init() {
 
 		$api_key = get_option(self::SETTING_GOOGLE_MAPS_API_KEY);
@@ -39,7 +41,7 @@ class locations {
 	}
 
 	static function settings_google_maps_api_key_callback() {
-		self::input(self::SETTING_GOOGLE_MAPS_API_KEY, "Your API key here");
+		self::input(self::SETTING_GOOGLE_MAPS_API_KEY);
 	}
 
 	static function input($setting, $default = None) {
@@ -53,7 +55,62 @@ class locations {
 	}
 
 	static function shortcode_map($atts) {
-		return "<div id='map-canvas' style='width: 100%; height: 400px'></div>";
+		$a = shortcode_atts(
+			array(
+				"id" => "default",
+				"zoom" => 4
+				),
+			$atts);
+
+		$id = $a["id"];
+
+		$pins = array();
+		if (array_key_exists($id, static::$maps)) {
+			$pins = static::$maps[$id];
+		}
+
+		$details = array("pins" => $pins, "zoom" => $a["zoom"]);
+
+		$result = "";
+		$result .= "<script>";
+		$result .= "locations['" . $id . "'] = " . json_encode($details) . ";";
+		$result .= "</script>";
+		$result .= "<div id='locations-map-canvas-" . $id . "' style='width: 100%; height: 400px'></div>";
+
+		return $result;
+	}
+
+	static function copy_array_keys($keys, $source_array) {
+		$result = array();
+		foreach ($keys as &$key) {
+			$result[$key] = $source_array[$key];
+		}
+		unset($key);
+		return $result;
+	}
+
+	static function shortcode_pin($atts) {
+		$a = shortcode_atts(
+			array(
+				"map" => "default",
+				"name" => "Dropped Pin",
+				"lat" => "0.000",
+				"lng" => "0.000"
+				),
+			$atts);
+
+		$mapId = $a["map"];
+
+		if (!array_key_exists($mapId, static::$maps)) {
+			static::$maps[$mapId] = array();
+		}
+
+		$sanitised_pin = locations::copy_array_keys(["name", "lat", "lng"], $a);
+		array_push(static::$maps[$mapId], $sanitised_pin);
+
+		$index = count(static::$maps[$mapId]) - 1;
+
+		return '<a href="javascript:setLocation(\'' . $mapId . '\', ' . $index . ');">' . $sanitised_pin["name"] . '</a>';
 	}
 
 }
@@ -64,6 +121,7 @@ add_action('admin_init', array('locations', 'admin_init'));
 
 // Shortcodes.
 add_shortcode('map', array('locations', 'shortcode_map'));
+add_shortcode('pin', array('locations', 'shortcode_pin'));
 
 // Filters
 add_filter('the_content', array('locations', 'filter_something'));
