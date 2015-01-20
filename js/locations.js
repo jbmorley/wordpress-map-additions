@@ -32,7 +32,9 @@ function locations_initialize_map(id, options) {
 			title: pin.name
 		});
 
-		map.setCenter(latlng);
+		if (i == 0) {
+			map.setCenter(latlng);
+		}
 
 	}
 
