@@ -1,3 +1,16 @@
+
+function locations_initialize() {
+
+	var mapOptions = {
+          center: { lat: -34.397, lng: 150.644},
+          zoom: 8
+        };
+        var map = new google.maps.Map(document.getElementById('map-canvas'), mapOptions);
+
+}
+
+google.maps.event.addDomListener(window, 'load', locations_initialize);
+
 var markers = new Array();
 var global_maps = new Array();
 var global_locations = new Array();
