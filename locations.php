@@ -12,20 +12,53 @@
 
 class locations {
 
+	const SETTINGS_PAGE = "general";
+	const SETTINGS_GROUP = "locations";
+	const SETTING_GOOGLE_MAPS_API_KEY = "locations_google_maps_api_key";
+
 	static function init() {
-		$api_key = 'AIzaSyBxqKnZdnWREeJePXTLJZmIXulbQwCx_hk';
+
+		$api_key = get_option(self::SETTING_GOOGLE_MAPS_API_KEY);
 		$path = plugins_url('js/locations.js', __FILE__);
+		wp_enqueue_script('google-maps', 'https://maps.googleapis.com/maps/api/js?key=' . $asitepi_key);
 		wp_enqueue_script('locations', $path);
-		wp_enqueue_script('google-maps', 'https://maps.googleapis.com/maps/api/js?key=' . $api_key);
+
+	}
+
+	static function admin_init() {
+
+		add_settings_field(
+			self::SETTING_GOOGLE_MAPS_API_KEY,
+			'Google Maps API Key',
+			array('locations', 'settings_google_maps_api_key_callback'),
+			self::SETTINGS_PAGE,
+			'default');
+
+		register_setting(self::SETTINGS_GROUP, self::SETTING_GOOGLE_MAPS_API_KEY);
+
+	}
+
+	static function settings_google_maps_api_key_callback() {
+		self::input(self::SETTING_GOOGLE_MAPS_API_KEY, "Your API key here");
+	}
+
+	static function input($setting, $default = None) {
+		settings_fields(self::SETTINGS_GROUP);
+		$value = get_option($setting, $default);
+		echo '<input type="text" id="' . $setting . '" name="' . $setting . '" value="' . $value . '" />';
 	}
 
 	static function filter_something($content) {
-		return $content;
+		return preg_replace("/\\[map\\]/", "<div id='map-canvas' style='width: 100%; height: 400px'></div>", $content);
 	}
 
 }
 
+// Actions
 add_action('init', array('locations', 'init'));
+add_action('admin_init', array('locations', 'admin_init'));
+
+// Filters
 add_filter('the_content', array('locations', 'filter_something'));
 
 ?>
