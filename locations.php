@@ -49,7 +49,11 @@ class locations {
 	}
 
 	static function filter_something($content) {
-		return preg_replace("/\\[map\\]/", "<div id='map-canvas' style='width: 100%; height: 400px'></div>", $content);
+		return $content;
+	}
+
+	static function shortcode_map($atts) {
+		return "<div id='map-canvas' style='width: 100%; height: 400px'></div>";
 	}
 
 }
@@ -57,6 +61,9 @@ class locations {
 // Actions
 add_action('init', array('locations', 'init'));
 add_action('admin_init', array('locations', 'admin_init'));
+
+// Shortcodes.
+add_shortcode('map', array('locations', 'shortcode_map'));
 
 // Filters
 add_filter('the_content', array('locations', 'filter_something'));
