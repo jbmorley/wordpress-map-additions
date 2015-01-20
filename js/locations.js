@@ -21,6 +21,7 @@ function locations_initialize_map(id, options) {
 
 	var canvasId = locations_get_canvas_id(id);
         var map = new google.maps.Map(document.getElementById(canvasId), mapOptions);
+	var coordinates = [];
 
 	for (var i = 0; i < options.pins.length; i++) {
 
@@ -32,11 +33,23 @@ function locations_initialize_map(id, options) {
 			title: pin.name
 		});
 
+		coordinates.push(latlng);
+
 		if (i == 0) {
 			map.setCenter(latlng);
 		}
 
 	}
+
+	var path = new google.maps.Polyline({
+		path: coordinates,
+		geodesic: true,
+		strokeColor: '#ff0000',
+		strokeOpacity: 1.0,
+		strokeWeight: 2
+	});
+
+	path.setMap(map);
 
 	locations_map_instances[id] = map;
 }
