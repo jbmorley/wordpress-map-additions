@@ -16,7 +16,8 @@ function locations_initialize_map(id, options) {
 
 	var mapOptions = {
 		center: { lat: -34.397, lng: 150.644},	
-		zoom: parseInt(options.zoom)
+		zoom: parseInt(options.zoom),
+		disableDefaultUI: true
 	};
 
 	var canvasId = locations_get_canvas_id(id);
