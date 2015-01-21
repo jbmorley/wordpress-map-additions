@@ -200,6 +200,9 @@ class locations {
 			return $m[0];
 		}
 
+		self::$galleryId++;
+		$mapId = "post-" . get_the_ID() . "-gallery-" . self::$galleryId;
+
 		$attr = shortcode_parse_atts($m[3]);
 		$ids = explode(',', $attr["ids"]);
 		foreach ($ids as &$id) {
@@ -208,13 +211,13 @@ class locations {
 				$gps = self::get_gps($path);
 				if ($gps !== None) {
 					$result .= var_export($gps, true);
-					self::add_pin("geotag", array("name" => "Pin", "lat" => $gps[0], "lng" => $gps[1]));
+					self::add_pin($mapId, array("name" => "Pin", "lat" => $gps[0], "lng" => $gps[1]));
 				}
 			}
 		}
 		unset($id);
 
-		$gallery = self::get_map("geotag", array("zoom" => 12));
+		$gallery = self::get_map($mapId, array("zoom" => 12));
 
 		return $m[0] . $gallery;
 
