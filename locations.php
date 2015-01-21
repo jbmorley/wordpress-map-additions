@@ -17,6 +17,7 @@ class locations {
 	const SETTING_GOOGLE_MAPS_API_KEY = "locations_google_maps_api_key";
 
 	static $maps = array();
+	static $galleryId = 0;
 
 	static function init() {
 
@@ -50,9 +51,10 @@ class locations {
 		echo '<input type="text" id="' . $setting . '" name="' . $setting . '" value="' . $value . '" />';
 	}
 
-	static function filter_something($content) {
-		static::$content = $content;
-		return $content;
+	static function filter_content($content) {
+		$pattern = get_shortcode_regex();
+		$result = preg_replace_callback( "/$pattern/s", array('locations', 'handle_gallery_shortcode'), $content);
+		return $result;
 	}
 
 	static function get_map($id, $options = None) {
@@ -83,7 +85,6 @@ class locations {
 			$atts);
 
 		$id = $a["id"];
-
 		return self::get_map($id, $a);
 	}
 
@@ -95,8 +96,6 @@ class locations {
 		unset($key);
 		return $result;
 	}
-
-	static $content = "";
 
 	static function add_pin($mapId, $pin) {
 
@@ -197,34 +196,27 @@ class locations {
 
 		$result = "";
 
-		if (strcmp($tag, "gallery") === 0) {
-			$attr = shortcode_parse_atts($m[3]);
-			$ids = explode(',', $attr["ids"]);
-			foreach ($ids as &$id) {
-				if (wp_attachment_is_image($id)) {
-					$path = get_attached_file($id);
-					$gps = self::get_gps($path);
-					if ($gps !== None) {
-						$result .= var_export($gps, true);
-						self::add_pin("geotag", array("name" => "Pin", "lat" => $gps[0], "lng" => $gps[1]));
-					}
-				}
-			}
-			unset($id);
-			return $result;
+		if (strcmp($tag, "gallery") !== 0) {
+			return $m[0];
 		}
 
-		return $result;
+		$attr = shortcode_parse_atts($m[3]);
+		$ids = explode(',', $attr["ids"]);
+		foreach ($ids as &$id) {
+			if (wp_attachment_is_image($id)) {
+				$path = get_attached_file($id);
+				$gps = self::get_gps($path);
+				if ($gps !== None) {
+					$result .= var_export($gps, true);
+					self::add_pin("geotag", array("name" => "Pin", "lat" => $gps[0], "lng" => $gps[1]));
+				}
+			}
+		}
+		unset($id);
 
-	}
+		$gallery = self::get_map("geotag", array("zoom" => 12));
 
-	static function shortcode_geotag($atts) {
-
-		// Parse the content looking for any gallery shortcodes.
-		$pattern = get_shortcode_regex();
-		preg_replace_callback( "/$pattern/s", array('locations', 'handle_gallery_shortcode'), static::$content);
-
-		return self::get_map("geotag", array("zoom" => 12));
+		return $m[0] . $gallery;
 
 	}
 
@@ -237,10 +229,9 @@ add_action('admin_init', array('locations', 'admin_init'));
 // Shortcodes.
 add_shortcode('map', array('locations', 'shortcode_map'));
 add_shortcode('pin', array('locations', 'shortcode_pin'));
-add_shortcode('geotag', array('locations', 'shortcode_geotag'));
 
 // Filters
-add_filter('the_content', array('locations', 'filter_something'));
+add_filter('the_content', array('locations', 'filter_content'));
 
 ?>
 
