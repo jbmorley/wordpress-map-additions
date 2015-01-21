@@ -51,7 +51,27 @@ class locations {
 	}
 
 	static function filter_something($content) {
+		static::$content = $content;
 		return $content;
+	}
+
+	static function get_map($id, $options = None) {
+
+		$pins = array();
+		if (array_key_exists($id, static::$maps)) {
+			$pins = static::$maps[$id];
+		}
+
+		$details = array("pins" => $pins, "zoom" => $options["zoom"]);
+
+		$result = "";
+		$result .= "<script>";
+		$result .= "locations['" . $id . "'] = " . json_encode($details) . ";";
+		$result .= "</script>";
+		$result .= "<div id='locations-map-canvas-" . $id . "' style='width: 100%; height: 400px'></div>";
+
+		return $result;
+
 	}
 
 	static function shortcode_map($atts) {
@@ -64,20 +84,7 @@ class locations {
 
 		$id = $a["id"];
 
-		$pins = array();
-		if (array_key_exists($id, static::$maps)) {
-			$pins = static::$maps[$id];
-		}
-
-		$details = array("pins" => $pins, "zoom" => $a["zoom"]);
-
-		$result = "";
-		$result .= "<script>";
-		$result .= "locations['" . $id . "'] = " . json_encode($details) . ";";
-		$result .= "</script>";
-		$result .= "<div id='locations-map-canvas-" . $id . "' style='width: 100%; height: 400px'></div>";
-
-		return $result;
+		return self::get_map($id, $a);
 	}
 
 	static function copy_array_keys($keys, $source_array) {
@@ -87,6 +94,22 @@ class locations {
 		}
 		unset($key);
 		return $result;
+	}
+
+	static $content = "";
+
+	static function add_pin($mapId, $pin) {
+
+		if (!array_key_exists($mapId, static::$maps)) {
+			static::$maps[$mapId] = array();
+		}
+
+		array_push(static::$maps[$mapId], $pin);
+
+		$index = count(static::$maps[$mapId]) - 1;
+
+		return $index;
+
 	}
 
 	static function shortcode_pin($atts) {
@@ -101,16 +124,108 @@ class locations {
 
 		$mapId = $a["map"];
 
-		if (!array_key_exists($mapId, static::$maps)) {
-			static::$maps[$mapId] = array();
-		}
-
-		$sanitised_pin = locations::copy_array_keys(["name", "lat", "lng"], $a);
-		array_push(static::$maps[$mapId], $sanitised_pin);
-
-		$index = count(static::$maps[$mapId]) - 1;
+		$sanitised_pin = self::copy_array_keys(["name", "lat", "lng"], $a);
+		$index = self::add_pin($mapId, $sanitised_pin);
 
 		return '<a href="javascript:setLocation(\'' . $mapId . '\', ' . $index . ');">' . $sanitised_pin["name"] . '</a>';
+	}
+
+	function convert_gps($exifCoord, $hemi) {
+
+		$degrees = count($exifCoord) > 0 ? self::gps_to_number($exifCoord[0]) : 0;
+		$minutes = count($exifCoord) > 1 ? self::gps_to_number($exifCoord[1]) : 0;
+		$seconds = count($exifCoord) > 2 ? self::gps_to_number($exifCoord[2]) : 0;
+
+		$flip = ($hemi == 'W' or $hemi == 'S') ? -1 : 1;
+
+		return $flip * ($degrees + $minutes / 60 + $seconds / 3600);
+
+	}
+
+	function gps_to_number($coordPart) {
+
+		$parts = explode('/', $coordPart);
+
+		if (count($parts) <= 0)
+			return 0;
+
+		if (count($parts) == 1)
+			return $parts[0];
+
+		return floatval($parts[0]) / floatval($parts[1]);
+
+	}
+
+	static function get_gps_coordinate($key, $exif) {
+
+		$result = "0";
+
+		$value_key = $key;
+		$direction_key = $value_key . "Ref";
+
+		if (!array_key_exists($value_key, $exif) || !array_key_exists($direction_key, $exif)) {
+			return None;
+		}
+
+		$value = $exif[$value_key];
+		$direction = $exif[$direction_key];
+
+		if ($value == None || $direction == None) {
+			return None;
+		}
+
+		return self::convert_gps($value, $direction);
+	}
+
+	static function get_gps($path) {
+
+		$exif = exif_read_data($path);
+
+		$latitude = self::get_gps_coordinate("GPSLatitude", $exif);
+		$longitude = self::get_gps_coordinate("GPSLongitude", $exif);
+
+		if ($longitude === None || $latitude === None) {
+			return None;
+		}
+
+		return array($latitude, $longitude);
+	}
+
+	static function handle_gallery_shortcode($m) {
+
+		$tag = $m[2];
+
+		$result = "";
+
+		if (strcmp($tag, "gallery") === 0) {
+			$attr = shortcode_parse_atts($m[3]);
+			$ids = explode(',', $attr["ids"]);
+			foreach ($ids as &$id) {
+				if (wp_attachment_is_image($id)) {
+					$path = get_attached_file($id);
+					$gps = self::get_gps($path);
+					if ($gps !== None) {
+						$result .= var_export($gps, true);
+						self::add_pin("geotag", array("name" => "Pin", "lat" => $gps[0], "lng" => $gps[1]));
+					}
+				}
+			}
+			unset($id);
+			return $result;
+		}
+
+		return $result;
+
+	}
+
+	static function shortcode_geotag($atts) {
+
+		// Parse the content looking for any gallery shortcodes.
+		$pattern = get_shortcode_regex();
+		preg_replace_callback( "/$pattern/s", array('locations', 'handle_gallery_shortcode'), static::$content);
+
+		return self::get_map("geotag", array("zoom" => 12));
+
 	}
 
 }
@@ -122,8 +237,10 @@ add_action('admin_init', array('locations', 'admin_init'));
 // Shortcodes.
 add_shortcode('map', array('locations', 'shortcode_map'));
 add_shortcode('pin', array('locations', 'shortcode_pin'));
+add_shortcode('geotag', array('locations', 'shortcode_geotag'));
 
 // Filters
 add_filter('the_content', array('locations', 'filter_something'));
 
 ?>
+
