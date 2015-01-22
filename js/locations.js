@@ -22,12 +22,16 @@ function locations_initialize_map(id, options) {
 
 	var canvasId = locations_get_canvas_id(id);
         var map = new google.maps.Map(document.getElementById(canvasId), mapOptions);
+	var bounds = new google.maps.LatLngBounds();
 	var coordinates = [];
 
 	for (var i = 0; i < options.pins.length; i++) {
 
 		var pin = options.pins[i];
 		var latlng = new google.maps.LatLng(pin.lat, pin.lng);
+
+		bounds.extend(latlng);
+
 		var marker = new google.maps.Marker({
 			position: latlng,
 			map: map,
@@ -35,10 +39,6 @@ function locations_initialize_map(id, options) {
 		});
 
 		coordinates.push(latlng);
-
-		if (i == 0) {
-			map.setCenter(latlng);
-		}
 
 	}
 
@@ -51,6 +51,7 @@ function locations_initialize_map(id, options) {
 	});
 
 	path.setMap(map);
+	map.fitBounds(bounds);
 
 	locations_map_instances[id] = map;
 }
