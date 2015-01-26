@@ -6,7 +6,7 @@
 // Version: 1.0.0
 // Author: Jason Barrie Morley
 // Author URI: http://jbmorley.co.uk
-// License: GPL2
+// License: GPLv2 or later
 //
 // Copyright 2015 Jason Barrie Morley (jbmorley@mac.com)
 //
