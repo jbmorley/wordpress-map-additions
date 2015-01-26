@@ -22,7 +22,7 @@ class locations {
 	static function init() {
 
 		$api_key = get_option(self::SETTING_GOOGLE_MAPS_API_KEY);
-		$path = plugins_url('js/locations.js', __FILE__);
+		$path = plugins_url('js/wordpress-map-additions.js', __FILE__);
 		wp_enqueue_script('google-maps', 'https://maps.googleapis.com/maps/api/js?key=' . $asitepi_key);
 		wp_enqueue_script('locations', $path);
 
