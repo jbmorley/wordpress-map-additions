@@ -24,6 +24,8 @@
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 //
 
+defined('ABSPATH') or die("No script kiddies please!");
+
 class wordpress_map_additions {
 
     const SETTINGS_PAGE = "general";
