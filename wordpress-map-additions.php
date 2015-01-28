@@ -67,29 +67,40 @@ class wordpress_map_additions {
     }
 
     static function filter_content($content) {
+
         $pattern = get_shortcode_regex();
         $result = preg_replace_callback( "/$pattern/s", array('wordpress_map_additions', 'handle_gallery_shortcode'), $content);
+
+        // Generate maps for attachments.
+        $id = get_the_ID();
+        $type = get_post_type($id);
+        if (strcmp($type, "attachment") == 0) {
+            $mapId = "post-" . $id . "-attachment";
+            if (self::add_attachment_pin($mapId, $id)) {
+                $result .= self::get_map($mapId, array("zoom" => 12, "showRoute" => false));
+            }
+        }
+
         return $result;
     }
 
-    static function get_map($id, $options = None) {
+    static function filter_excerpt($excerpt) {
+        return $excerpt;
+    }
 
+    static function get_map($id, $options = None) {
         $pins = array();
         if (array_key_exists($id, static::$maps)) {
             $pins = static::$maps[$id];
         }
-
         $details = array("pins" => $pins);
 	self::copy_array_keys(["zoom", "showRoute"], $options, $details);
-
         $result = "";
         $result .= "<script>";
         $result .= "locations['" . $id . "'] = " . json_encode($details) . ";";
         $result .= "</script>";
         $result .= "<div id='locations-map-canvas-" . $id . "' style='width: 100%; height: 400px'></div>";
-
         return $result;
-
     }
 
     static function shortcode_map($atts) {
@@ -100,7 +111,6 @@ class wordpress_map_additions {
                 "showRoute" => true,
                 ),
             $atts);
-
         $id = $a["id"];
         return self::get_map($id, $a);
     }
@@ -115,17 +125,12 @@ class wordpress_map_additions {
     }
 
     static function add_pin($mapId, $pin) {
-
         if (!array_key_exists($mapId, static::$maps)) {
             static::$maps[$mapId] = array();
         }
-
         array_push(static::$maps[$mapId], $pin);
-
         $index = count(static::$maps[$mapId]) - 1;
-
         return $index;
-
     }
 
     static function shortcode_pin($atts) {
@@ -137,40 +142,30 @@ class wordpress_map_additions {
                 "lng" => "0.000"
                 ),
             $atts);
-
         $mapId = $a["map"];
-
 	$sanitised_pin = array();
         self::copy_array_keys(["name", "lat", "lng"], $a, $sanitised_pin);
         $index = self::add_pin($mapId, $sanitised_pin);
-
         return '<a href="javascript:setLocation(\'' . $mapId . '\', ' . $index . ');">' . $sanitised_pin["name"] . '</a>';
     }
 
     function convert_gps($exifCoord, $hemi) {
-
         $degrees = count($exifCoord) > 0 ? self::gps_to_number($exifCoord[0]) : 0;
         $minutes = count($exifCoord) > 1 ? self::gps_to_number($exifCoord[1]) : 0;
         $seconds = count($exifCoord) > 2 ? self::gps_to_number($exifCoord[2]) : 0;
-
         $flip = ($hemi == 'W' or $hemi == 'S') ? -1 : 1;
-
         return $flip * ($degrees + $minutes / 60 + $seconds / 3600);
-
     }
 
     function gps_to_number($coordPart) {
-
         $parts = explode('/', $coordPart);
-
-        if (count($parts) <= 0)
+        if (count($parts) <= 0) {
             return 0;
-
-        if (count($parts) == 1)
+        }
+        if (count($parts) == 1) {
             return $parts[0];
-
+        }
         return floatval($parts[0]) / floatval($parts[1]);
-
     }
 
     static function get_gps_coordinate($key, $exif) {
@@ -208,6 +203,20 @@ class wordpress_map_additions {
         return array($latitude, $longitude);
     }
 
+    static function add_attachment_pin($mapId, $attachment_id) {
+        if (!wp_attachment_is_image($attachment_id)) {
+            return false;
+        }
+        $path = get_attached_file($attachment_id);
+        $gps = self::get_gps($path);
+        if ($gps === None) {
+            return false;
+        }
+        $result .= var_export($gps, true);
+        self::add_pin($mapId, array("name" => "Pin", "lat" => $gps[0], "lng" => $gps[1]));
+        return true;
+    }
+
     static function handle_gallery_shortcode($m) {
 
         $tag = $m[2];
@@ -224,14 +233,7 @@ class wordpress_map_additions {
         $attr = shortcode_parse_atts($m[3]);
         $ids = explode(',', $attr["ids"]);
         foreach ($ids as &$id) {
-            if (wp_attachment_is_image($id)) {
-                $path = get_attached_file($id);
-                $gps = self::get_gps($path);
-                if ($gps !== None) {
-                    $result .= var_export($gps, true);
-                    self::add_pin($mapId, array("name" => "Pin", "lat" => $gps[0], "lng" => $gps[1]));
-                }
-            }
+            self::add_attachment_pin($mapId, $id);
         }
         unset($id);
 
@@ -253,6 +255,7 @@ add_shortcode('pin', array('wordpress_map_additions', 'shortcode_pin'));
 
 // Filters
 add_filter('the_content', array('wordpress_map_additions', 'filter_content'));
+add_filter('get_the_excerpt', array('wordpress_map_additions', 'filter_excerpt'));
 
 ?>
 
