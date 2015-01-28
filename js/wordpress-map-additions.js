@@ -59,15 +59,17 @@ function locations_initialize_map(id, options) {
 
     }
 
-    var path = new google.maps.Polyline({
-        path: coordinates,
-        geodesic: true,
-        strokeColor: '#ff0000',
-        strokeOpacity: 1.0,
-        strokeWeight: 2
-    });
+    if (options.showRoute) {
+        var path = new google.maps.Polyline({
+            path: coordinates,
+            geodesic: true,
+            strokeColor: '#ff0000',
+            strokeOpacity: 1.0,
+            strokeWeight: 2
+        });
+        path.setMap(map);
+    }
 
-    path.setMap(map);
     map.fitBounds(bounds);
 
     locations_map_instances[id] = map;
