@@ -79,7 +79,8 @@ class wordpress_map_additions {
             $pins = static::$maps[$id];
         }
 
-        $details = array("pins" => $pins, "zoom" => $options["zoom"]);
+        $details = array("pins" => $pins);
+	self::copy_array_keys(["zoom", "showRoute"], $options, $details);
 
         $result = "";
         $result .= "<script>";
@@ -95,7 +96,8 @@ class wordpress_map_additions {
         $a = shortcode_atts(
             array(
                 "id" => "default",
-                "zoom" => 4
+                "zoom" => 4,
+                "showRoute" => true,
                 ),
             $atts);
 
@@ -103,13 +105,13 @@ class wordpress_map_additions {
         return self::get_map($id, $a);
     }
 
-    static function copy_array_keys($keys, $source_array) {
-        $result = array();
+    static function copy_array_keys($keys, $source_array, &$destination_array) {
         foreach ($keys as &$key) {
-            $result[$key] = $source_array[$key];
+            if (array_key_exists($key, $source_array)) {
+                $destination_array[$key] = $source_array[$key];
+            }
         }
         unset($key);
-        return $result;
     }
 
     static function add_pin($mapId, $pin) {
@@ -138,7 +140,8 @@ class wordpress_map_additions {
 
         $mapId = $a["map"];
 
-        $sanitised_pin = self::copy_array_keys(["name", "lat", "lng"], $a);
+	$sanitised_pin = array();
+        self::copy_array_keys(["name", "lat", "lng"], $a, $sanitised_pin);
         $index = self::add_pin($mapId, $sanitised_pin);
 
         return '<a href="javascript:setLocation(\'' . $mapId . '\', ' . $index . ');">' . $sanitised_pin["name"] . '</a>';
@@ -232,7 +235,7 @@ class wordpress_map_additions {
         }
         unset($id);
 
-        $gallery = self::get_map($mapId, array("zoom" => 12));
+        $gallery = self::get_map($mapId, array("zoom" => 12, "showRoute" => false));
 
         return $m[0] . $gallery;
 
