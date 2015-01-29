@@ -34,6 +34,7 @@ function locations_initialize_map(id, options) {
     var mapOptions = {
         center: { lat: -34.397, lng: 150.644},    
         zoom: parseInt(options.zoom),
+        maxZoom: 16,
         disableDefaultUI: true
     };
 
@@ -71,14 +72,11 @@ function locations_initialize_map(id, options) {
     }
 
     map.fitBounds(bounds);
-
     locations_map_instances[id] = map;
 }
 
 var locations = [];
 var locations_map_instances = {};
-
-google.maps.event.addDomListener(window, 'load', locations_initialize);
 
 function setLocation(id, index) {
     var map = locations_map_instances[id];
@@ -86,3 +84,5 @@ function setLocation(id, index) {
     var pin = location.pins[index];
     map.setCenter(new google.maps.LatLng(pin.lat, pin.lng));
 }
+
+google.maps.event.addDomListener(window, 'load', locations_initialize);
