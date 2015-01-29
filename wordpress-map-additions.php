@@ -73,16 +73,49 @@ class wordpress_map_additions {
 
         // Generate maps for attachments.
         $id = get_the_ID();
-        $type = get_post_type($id);
-        if (strcmp($type, "attachment") == 0) {
+        if (self::post_is_image_attachment($id)) {
+
             $mapId = "post-" . $id . "-attachment";
+            $result .= "<h1>Location</h1>";
             if (self::add_attachment_pin($mapId, $id)) {
-                $result .= "<h1>Details</h1>";
                 $result .= self::get_map($mapId, array("zoom" => 12, "showRoute" => false));
+            }
+
+            $exif = self::get_attachment_exif($id);
+            if ($exif != None) {
+                $result .= "<h1>Details</h1>";
+                $keys = array(
+                    "Model" => "Camera",
+                    "DateTime" => "Date",
+                    "ExposureTime" => "Exposure Time",
+                    "FNumber" => "f",
+                    "ExposureProgram" => "Exposure Program",
+                    "ISOSpeedRatings" => "ISO",
+                    "FocalLength" => "Focal Length",
+                    "Flash" => "Flash");
+                $result .= "<table>";
+                foreach ($exif as $key => $value) {
+                    if (!array_key_exists($key, $keys)) {
+                        continue;
+                    }
+                    $result .= "<tr>";
+                    $result .= "<th>" . htmlentities($keys[$key], ENT_QUOTES, 'UTF-8') . "</th>";
+                    $result .= "<td>" . htmlentities($value, ENT_QUOTES, 'UTF-8') . "</td>";
+                    $result .= "</tr>";
+                }
+                $result .= "</table>";
             }
         }
 
         return $result;
+    }
+
+    static function post_is_image_attachment($id) {
+        $type = get_post_type($id);
+        if (strcmp($type, "attachment") != 0) {
+            return false;
+        }
+        return true;
     }
 
     static function filter_excerpt($excerpt) {
@@ -170,46 +203,54 @@ class wordpress_map_additions {
     }
 
     static function get_gps_coordinate($key, $exif) {
-
         $result = "0";
-
         $value_key = $key;
         $direction_key = $value_key . "Ref";
-
         if (!array_key_exists($value_key, $exif) || !array_key_exists($direction_key, $exif)) {
             return None;
         }
-
         $value = $exif[$value_key];
         $direction = $exif[$direction_key];
-
         if ($value == None || $direction == None) {
             return None;
         }
-
         return self::convert_gps($value, $direction);
     }
 
     static function get_gps($path) {
-
         $exif = exif_read_data($path);
-
         $latitude = self::get_gps_coordinate("GPSLatitude", $exif);
         $longitude = self::get_gps_coordinate("GPSLongitude", $exif);
-
         if ($longitude === None || $latitude === None) {
             return None;
         }
-
         return array($latitude, $longitude);
     }
 
-    static function add_attachment_pin($mapId, $attachment_id) {
-        if (!wp_attachment_is_image($attachment_id)) {
-            return false;
+    static function get_attachment_gps($id) {
+        $exif = self::get_attachment_exif($id);
+        if ($exif == None) {
+            return None;
         }
-        $path = get_attached_file($attachment_id);
-        $gps = self::get_gps($path);
+        $latitude = self::get_gps_coordinate("GPSLatitude", $exif);
+        $longitude = self::get_gps_coordinate("GPSLongitude", $exif);
+        if ($longitude === None || $latitude === None) {
+            return None;
+        }
+        return array($latitude, $longitude);
+    }
+
+    static function get_attachment_exif($id) {
+        if (!wp_attachment_is_image($id)) {
+            return None;
+        }
+        $path = get_attached_file($id);
+        $exif = exif_read_data($path);
+        return $exif;
+    }
+
+    static function add_attachment_pin($mapId, $attachment_id) {
+        $gps = self::get_attachment_gps($attachment_id);
         if ($gps === None) {
             return false;
         }
