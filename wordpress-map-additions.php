@@ -77,6 +77,7 @@ class wordpress_map_additions {
         if (strcmp($type, "attachment") == 0) {
             $mapId = "post-" . $id . "-attachment";
             if (self::add_attachment_pin($mapId, $id)) {
+                $result .= "<h1>Details</h1>";
                 $result .= self::get_map($mapId, array("zoom" => 12, "showRoute" => false));
             }
         }
