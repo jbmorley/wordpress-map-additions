@@ -78,7 +78,7 @@ class wordpress_map_additions {
             $mapId = "post-" . $id . "-attachment";
             $result .= "<h1>Location</h1>";
             if (self::add_attachment_pin($mapId, $id)) {
-                $result .= self::get_map($mapId, array("zoom" => 12, "showRoute" => false));
+                $result .= self::get_map($mapId, array("zoom" => 14, "showRoute" => false));
             }
 
             $exif = self::get_attachment_exif($id);
